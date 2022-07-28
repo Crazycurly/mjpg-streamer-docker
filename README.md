@@ -1,6 +1,85 @@
 mjpg-streamer
 =============
+Refer to https://hub.docker.com/r/badsmoke/mjpg-streamer
 
+Add Docker support
+------------------
+Docker Hub https://hub.docker.com/r/crazycurly/mjpg-streamer
+
+environment vars
+----------------
+```
+ENV_FPS default:30
+
+ENV_RESOLUTION default:1280x720
+
+ENV_PORT default:8080
+
+ENV_LOCATION default:/usr/local/www
+
+ENV_CAMERA default: /dev/video0
+```
+
+Docker run / docker-compose
+---------------------------
+### docker run
+```
+docker run --device /dev/video0 -e "ENV_FPS=30" -e "ENV_RESOLUTION=1280x720" -p 8080:8080 crazycurly/mjpg-streamer
+```
+### docker compose
+```
+version: '2'
+services:
+  mjpg-streamer:
+    build:
+      context: .
+    restart: always
+    image: crazycurly/mjpg-streamer
+    environment:
+      - ENV_RESOLUTION=1280x720
+      - ENV_FPS=30
+      - ENV_CAMERA=/dev/video0
+    devices:
+      - /dev/video0
+    ports:
+      - 8080:8080
+```
+Dockerfile / docker-start.sh
+----------------------------
+### Dockerfile
+```
+FROM ubuntu:18.04
+
+RUN apt-get update && apt-get install cmake make build-essential imagemagick subversion libv4l-dev checkinstall libjpeg-turbo8 libjpeg-turbo8-dev libv4l-0 -y
+
+COPY ./mjpg-streamer-experimental /mjpg-streamer-experimental
+
+WORKDIR /mjpg-streamer-experimental
+
+RUN make USE_LIBV4L2=true clean all
+
+RUN chmod +x docker-start.sh
+
+EXPOSE 8080/TCP
+
+ENTRYPOINT ["/mjpg-streamer-experimental/docker-start.sh"]
+```
+
+### docker-start.sh
+```
+#!/bin/sh
+set -e
+
+FRAMES=${ENV_FPS:-"30"}
+RESOLUTION=${ENV_RESOLUTION:-"1280x720"}
+PORT=${ENV_PORT:-"8080"}
+LOCATION=${ENV_LOCATION:-"./www"}
+CAMERA=${ENV_CAMERA:-"/dev/video0"}
+
+export LD_LIBRARY_PATH="/mjpg-streamer-experimental"
+./mjpg_streamer -i "input_uvc.so -d $CAMERA -f $FRAMES -r $RESOLUTION" -o "output_http.so -p $PORT -w $LOCATION "
+```
+---
 This is a fork of http://sourceforge.net/projects/mjpg-streamer/ with added support for the Raspberry Pi camera via the input_raspicam plugin.
 
 mjpg-streamer is a command line application that copies JPEG frames from one
